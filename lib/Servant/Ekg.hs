@@ -1,13 +1,13 @@
-{-# LANGUAGE CPP                 #-}
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE FlexibleInstances   #-}
-{-# LANGUAGE KindSignatures      #-}
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE PolyKinds           #-}
-{-# LANGUAGE RecordWildCards     #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeOperators       #-}
+{-# LANGUAGE TypeOperators #-}
 
 module Servant.Ekg (
     HasEndpoint(..),
@@ -15,24 +15,24 @@ module Servant.Ekg (
     monitorEndpoints
 ) where
 
-import           Control.Exception
-import           Control.Monad
-import           Data.Hashable               (Hashable (..))
-import qualified Data.HashMap.Strict         as H
-import           Data.Monoid
-import           Data.Proxy
-import           Data.Text                   (Text)
-import qualified Data.Text                   as T
-import qualified Data.Text.Encoding          as T
-import           GHC.TypeLits
-import           Network.HTTP.Types          (Method)
-import           Network.Wai
-import           Servant.API
-import           Servant.Ekg.Internal
-import           System.Metrics
-import qualified System.Metrics.Counter      as Counter
+import Control.Exception
+import Control.Monad
+import Data.Hashable (Hashable(..))
+import Data.Monoid
+import Data.Proxy
+import Data.Text (Text)
+import GHC.TypeLits
+import Network.HTTP.Types (Method)
+import Network.Wai
+import Servant.API
+import Servant.Ekg.Internal
+import System.Metrics
+import qualified Data.HashMap.Strict as H
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
+import qualified System.Metrics.Counter as Counter
 import qualified System.Metrics.Distribution as Distribution
-import qualified System.Metrics.Gauge        as Gauge
+import qualified System.Metrics.Gauge as Gauge
 
 
 monitorEndpoints :: HasEndpoint api => Proxy api -> Store -> IO Middleware
@@ -177,6 +177,23 @@ instance ReflectMethod method => HasEndpoint (NoContentVerb method) where
 
     enumerateEndpoints _ = [APIEndpoint mempty method]
       where method = reflectMethod (Proxy :: Proxy method)
+#endif
+
+#if MIN_VERSION_servant(0,18,1)
+instance ReflectMethod method => HasEndpoint (UVerb method contentType as) where
+    getEndpoint _ req = case pathInfo req of
+        [] | requestMethod req == method -> Just (APIEndpoint [] method)
+        _                                -> Nothing
+      where method = reflectMethod (Proxy :: Proxy method)
+
+    enumerateEndpoints _ = [APIEndpoint mempty method]
+      where method = reflectMethod (Proxy :: Proxy method)
+#endif
+
+#if MIN_VERSION_servant(0,18,2)
+instance HasEndpoint (sub :: *) => HasEndpoint (Fragment x :> sub) where
+    getEndpoint        _ = getEndpoint        (Proxy :: Proxy sub)
+    enumerateEndpoints _ = enumerateEndpoints (Proxy :: Proxy sub)
 #endif
 
 instance ReflectMethod method => HasEndpoint (Stream method status framing ct a) where
